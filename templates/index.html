@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>CRUD Usuarios</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; background: #f0f2f5; }
+        h1 { color: #2c3e50; text-align: center; }
+        .form-section { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        input { padding: 8px 12px; margin: 5px; border: 1px solid #ccc; border-radius: 6px; width: 200px; }
+        button { padding: 8px 18px; margin: 5px; border: none; border-radius: 6px; cursor: pointer; color: white; font-weight: bold; }
+        .btn-add { background: #27ae60; }
+        .btn-edit { background: #2980b9; }
+        .btn-delete { background: #e74c3c; }
+        .btn-cancel { background: #95a5a6; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        th { background: #2c3e50; color: white; padding: 12px; }
+        td { padding: 10px 12px; border-bottom: 1px solid #eee; text-align: center; }
+        tr:hover { background: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>👥 CRUD de Usuarios</h1>
+
+    <div class="form-section">
+        <h3 id="form-title">➕ Agregar Usuario</h3>
+        <input id="inp-nombre" type="text" placeholder="Nombre completo" />
+        <input id="inp-email" type="email" placeholder="Email" />
+        <input id="inp-edad" type="number" placeholder="Edad" />
+        <br>
+        <button class="btn-add" onclick="guardarUsuario()">💾 Guardar</button>
+        <button class="btn-cancel" id="btn-cancelar" style="display:none" onclick="cancelarEdicion()">✖ Cancelar</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Email</th>
+                <th>Edad</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="tabla-usuarios"></tbody>
+    </table>
+
+    <script>
+        let editandoId = null;
+
+        async function cargarUsuarios() {
+            const res = await fetch("/usuarios");
+            const usuarios = await res.json();
+            const tbody = document.getElementById("tabla-usuarios");
+            tbody.innerHTML = "";
+            if (usuarios.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999">No hay usuarios aún</td></tr>';
+                return;
+            }
+            usuarios.forEach(u => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${u.id}</td>
+                        <td>${u.nombre}</td>
+                        <td>${u.email}</td>
+                        <td>${u.edad ?? "-"}</td>
+                        <td>
+                            <button class="btn-edit" onclick="editarUsuario(${u.id}, '${u.nombre}', '${u.email}', ${u.edad})">✏️ Editar</button>
+                            <button class="btn-delete" onclick="eliminarUsuario(${u.id})">🗑️ Eliminar</button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        async function guardarUsuario() {
+            const nombre = document.getElementById("inp-nombre").value.trim();
+            const email = document.getElementById("inp-email").value.trim();
+            const edad = parseInt(document.getElementById("inp-edad").value) || null;
+
+            if (!nombre || !email) {
+                alert("⚠️ Nombre y email son obligatorios");
+                return;
+            }
+
+            const datos = { nombre, email, edad };
+
+            if (editandoId) {
+                await fetch(`/usuarios/${editandoId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(datos)
+                });
+                cancelarEdicion();
+            } else {
+                await fetch("/usuarios", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(datos)
+                });
+            }
+            limpiarForm();
+            cargarUsuarios();
+        }
+
+        function editarUsuario(id, nombre, email, edad) {
+            editandoId = id;
+            document.getElementById("inp-nombre").value = nombre;
+            document.getElementById("inp-email").value = email;
+            document.getElementById("inp-edad").value = edad !== 'null' ? edad : '';
+            document.getElementById("form-title").textContent = "✏️ Editar Usuario";
+            document.getElementById("btn-cancelar").style.display = "inline";
+        }
+
+        function cancelarEdicion() {
+            editandoId = null;
+            document.getElementById("form-title").textContent = "➕ Agregar Usuario";
+            document.getElementById("btn-cancelar").style.display = "none";
+            limpiarForm();
+        }
+
+        async function eliminarUsuario(id) {
+            if (!confirm("¿Seguro que deseas eliminar este usuario?")) return;
+            await fetch(`/usuarios/${id}`, { method: "DELETE" });
+            cargarUsuarios();
+        }
+
+        function limpiarForm() {
+            document.getElementById("inp-nombre").value = "";
+            document.getElementById("inp-email").value = "";
+            document.getElementById("inp-edad").value = "";
+        }
+
+        cargarUsuarios();
+    </script>
+</body>
+</html>
